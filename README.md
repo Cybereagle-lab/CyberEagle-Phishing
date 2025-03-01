@@ -25,7 +25,9 @@ An advanced ethical phishing tool for **security awareness training** and **pene
 1. Clone the repository:
    ```bash
    git clone https://github.com/your-username/EthicalPhishTool.git
-   cd EthicalPhishTool
+   cd CyberEagle-Phishing
+   chmod +x install_servers.sh
+   ./install_servers.sh
    pip install -r requirements.txt
    python3 cybereaglephish.py
 

@@ -40,7 +40,7 @@ fi
 
 # Install Cloudflare Tunnel
 echo "Installing Cloudflare Tunnel..."
-if ! command -v cloudflared &> /dev/null; then
+if ! command wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -O cloudflared; then
     echo "Please download Cloudflare Tunnel from https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation and install manually."
 else
     echo "Cloudflare Tunnel is already installed."

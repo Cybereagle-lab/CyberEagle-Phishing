@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 import subprocess
 import time
 import shutil
+import sys
 
 # Initialize colorama
 init(autoreset=True)
@@ -176,10 +177,10 @@ def submit():
     <p>Thank you for logging in.</p>
     """
 
-# Function to check if cloudflared is installed
-def is_cloudflared_installed():
+# Function to check if a tool is installed
+def is_tool_installed(tool_name):
     try:
-        subprocess.run(["cloudflared", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        subprocess.run([tool_name, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
         return True
     except FileNotFoundError:
         return False
@@ -194,6 +195,9 @@ def start_free_server(server_choice, port):
         app.run(port=port)
     elif server_choice == "2":
         # Ngrok
+        if not is_tool_installed("ngrok"):
+            print("Error: 'ngrok' is not installed. Please install it from https://ngrok.com/download.")
+            return
         print("Starting Ngrok...")
         ngrok_process = subprocess.Popen(["ngrok", "http", str(port)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         time.sleep(5)  # Wait for Ngrok to initialize
@@ -201,6 +205,9 @@ def start_free_server(server_choice, port):
         subprocess.run(["curl", "http://localhost:4040/api/tunnels"], stdout=subprocess.PIPE)
     elif server_choice == "3":
         # LocalTunnel
+        if not is_tool_installed("lt"):
+            print("Error: 'localtunnel' is not installed. Please install it using 'npm install -g localtunnel'.")
+            return
         print("Starting LocalTunnel...")
         lt_process = subprocess.Popen(["lt", "--port", str(port)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         time.sleep(5)  # Wait for LocalTunnel to initialize
@@ -211,6 +218,9 @@ def start_free_server(server_choice, port):
                 break
     elif server_choice == "4":
         # PageKite
+        if not is_tool_installed("pagekite.py"):
+            print("Error: 'pagekite' is not installed. Please install it using 'pip install pagekite'.")
+            return
         print("Starting PageKite...")
         subprocess.run(["pagekite.py", str(port), "yourpagekite.pagekite.me"])
     elif server_choice == "5":
@@ -219,14 +229,17 @@ def start_free_server(server_choice, port):
         subprocess.run(["ssh", "-R", "80:localhost:" + str(port), "serveo.net"])
     elif server_choice == "6":
         # LocalXpose
+        if not is_tool_installed("loclx"):
+            print("Error: 'localxpose' is not installed. Please install it from https://localxpose.io/download.")
+            return
         print("Starting LocalXpose...")
         subprocess.run(["loclx", "http", "tunnel", "--to", str(port)])
     elif server_choice == "7":
         # Cloudflare Tunnel
-        print("Starting Cloudflare Tunnel...")
-        if not is_cloudflared_installed():
+        if not is_tool_installed("cloudflared"):
             print("Error: 'cloudflared' is not installed. Please install it from https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation.")
             return
+        print("Starting Cloudflare Tunnel...")
         try:
             subprocess.run(["cloudflared", "tunnel", "--url", "http://localhost:" + str(port)], check=True)
         except subprocess.CalledProcessError as e:

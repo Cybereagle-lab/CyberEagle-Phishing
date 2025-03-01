@@ -98,10 +98,11 @@ def clone_website(url, output_dir):
             footer.string = "Created By Cyber Eagle"
             soup.body.append(footer)
             
-            # Save the modified HTML content
-            with open(f"{output_dir}/index.html", "w", encoding="utf-8") as file:
+            # Save the modified HTML content to a file
+            output_file = os.path.join(output_dir, "index.html")
+            with open(output_file, "w", encoding="utf-8") as file:
                 file.write(str(soup))
-            print(f"Website cloned successfully to {output_dir}")
+            print(f"Website cloned successfully to {output_file}")
         else:
             print(f"Failed to fetch website. Status code: {response.status_code}")
     except Exception as e:
